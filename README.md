@@ -1,4 +1,5 @@
-## PPI screen: Human-1433Z-dimer x Lpn-effectors
+## Protein-protein interaction: 
+#### Human-1433Z-dimer x Lpn-effectors
 
 ### Steps 
 - Get **amino acid sequences** in fasta format 
