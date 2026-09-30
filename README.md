@@ -1,5 +1,6 @@
-## Protein-protein interaction: 
-#### Human-1433Z-dimer x Lpn-effectors
+## Protein-protein interaction
+
+Screening interactions between Human 1433Z-dimer & Legionella pneumophila effectors computationally. 
 
 ### Steps 
 - Get **amino acid sequences** in fasta format 
