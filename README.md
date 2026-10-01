@@ -17,7 +17,9 @@ Screening interactions between Human 1433Z-dimer & Legionella pneumophila effect
     - Make job script to run MSA (`run_msa_cf_search.sh`)
         - Use fewer threads to avoid needing more memory/diskspace to r/w
     - Reserve hardware and time, and submit the job `submit_biomix_cf_search_msa_no_cpu.slurm`
-
+- Generate AlphaFold multimer models 
+    - Make job script to feed the MSA files to af_multimer `run_multimer_cf_batch.sh`
+    - Submit job to teh HPC cluster with `submit_biomix_cf_batch_multimer.slurm`
 
 **Commands**
 ```bash
