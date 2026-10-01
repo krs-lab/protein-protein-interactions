@@ -34,5 +34,46 @@ sbatch submit_biomix_cf_search_msa_no_cpu.slurm
 squeue -u $USER
 tail -f colabfold_search_biomix.log
 
+# check output file (.a3m) integrity 
+for f in *.a3m; do
+  # Check if empty
+  if [ ! -s "$f" ]; then
+      echo "EMPTY: $f"
+      continue
+  fi
+
+  # Check if a sequence header exists anywhere in the file
+  if ! grep -q "^>" "$f"; then
+      echo "INVALID FORMAT (No '>' headers): $f"
+      continue
+  fi
+
+  # Count MSA depth (number of sequences)
+  seq_count=$(grep -c "^>" "$f")
+  if [ "$seq_count" -lt 2 ]; then
+      echo "LOW DEPTH ($seq_count sequences): $f"
+  fi
+done
+
+# check MSA depth for bait and prey 
+echo "filename,file_size_bytes,sequence_count_bait,sequence_count_protein" > msa_summary.csv
+
+for f in *.a3m; do
+  awk -v f="$f" -v size="$(stat -c%s "$f")" '
+    function tally(   a, b) {
+      gsub(/[a-z]/, "", seq)            # drop lowercase insertions
+      a = substr(seq, 1, L); b = substr(seq, L + 1)
+      gsub(/-/, "", a); gsub(/-/, "", b)
+      nb += (a != "" && b == "")        # residues only in bait part
+      np += (a == "" && b != "")        # residues only in protein part
+    }
+    NR == 1 { split($0, h, /[#,\t]/); L = h[2]; next }   # bait length from header
+    /^>/    { tally(); seq = ""; next }
+    { seq = seq $0 }
+    END { tally(); printf "%s,%s,%d,%d\n", f, size, nb, np }
+  ' "$f" >> msa_summary.csv
+done
+
+cat msa_summary.csv
 ```
 
