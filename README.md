@@ -2,7 +2,7 @@
 
 Screening interactions between Human 1433Z-dimer & Legionella pneumophila effectors computationally. 
 
-### Steps 
+**Steps** 
 - Get **amino acid sequences** in fasta format 
     - 14-3-3-zeta from human from UniProt  
     - 368 Legionella pneumophial effector IDs (UniProt) from pathogen3d db
@@ -15,7 +15,6 @@ Screening interactions between Human 1433Z-dimer & Legionella pneumophila effect
     - Make a bait:bait:protein pair up with `pair_bait_protein.py`
 - **MSA** w `colabfold_search` on BIOMIX 
     - Make job script to run MSA (`run_msa_cf_search.sh`)
-        - Make local dir on working node to avoid I/O bottleneck 
         - Use fewer threads to avoid needing more memory/diskspace to r/w
     - Reserve hardware and time, and submit the job `submit_biomix_cf_search_msa_no_cpu.slurm`
 
