@@ -26,11 +26,10 @@ Screening interactions between Human 1433Z-dimer & Legionella pneumophila effect
 # get aa seqs - on local machine 
 python3 fetch_fasta_csv.py -i legionella_effectors_368.csv
 
----
-
 # make bait:protein pairs - on local machine 
 python3 pair_bait_protein.py -i ./proteins/multi_fasta.fasta -bf 1433Z_HUMAN.fasta --bait-copy 2
 
+#### MSA+ 
 # submit job on BIOMIX/HPC cluster 
 sbatch submit_biomix_cf_search_msa_no_cpu.slurm
 
@@ -38,6 +37,7 @@ sbatch submit_biomix_cf_search_msa_no_cpu.slurm
 squeue -u $USER
 tail -f colabfold_search_biomix.log
 
+### QC of .a3m 
 # check output file (.a3m) integrity 
 for f in *.a3m; do
   # Check if empty
@@ -79,5 +79,152 @@ for f in *.a3m; do
 done
 
 cat msa_summary.csv
+
+#### Multimer rendering 
+# submit job on BIOMIX/HPC 
+sbatch submit_biomix_cf_batch_multimer.slurm
+
+# job status check, same as before+ 
+tail -n 20 output_predictions/log.txt
+
+### QC of .pdb
+# from inside pdb containing dir. Enter at CLI.  
+# number of pdbs generated 
+ls *.pdb | wc -l
+
+# check atom numbers 
+for f in *.pdb; 
+do echo -n "$f: "; 
+  grep -c "^ATOM" "$f" | tr '\n' ' '; 
+  echo -n "atoms | Last line: "; tail -n 1 "$f"; 
+done
+echo
+
+# check plDDT scores
+python3 -c '
+import glob
+import os
+
+output_file = "plddt_summary.txt"
+lines = []
+
+for pdb_file in sorted(glob.glob("*.pdb")):
+    scores = []
+    with open(pdb_file, "r") as f:
+        for line in f:
+            if line.startswith("ATOM") and line[12:16].strip() == "CA":
+                try:
+                    scores.append(float(line[60:66].strip()))
+                except ValueError:
+                    continue
+
+    if scores:
+        avg_plddt = sum(scores) / len(scores)
+        result = f"{os.path.basename(pdb_file):35s} | Residues: {len(scores):4d} | Avg pLDDT: {avg_plddt:.2f}"
+    else:
+        result = f"{os.path.basename(pdb_file):35s} | CORRUPTED / NO ATOMS FOUND"
+
+    lines.append(result)
+    print(result)
+
+if lines:
+    with open(output_file, "w") as out_f:
+        out_f.write("\n".join(lines) + "\n")
+    print(f"Done. Processed {len(lines)} files. Summary saved to {output_file}\n")
+'
+
+# check pTM scores 
+python3 -c '
+import glob, json, os
+
+output_file = "ptm_summary.txt"
+lines = []
+
+for json_file in sorted(glob.glob("*scores*.json") or glob.glob("*.json")):
+    ptm_val = "N/A"
+    try:
+        with open(json_file, "r") as jf:
+            data = json.load(jf)
+            key = "ptm"
+            if key in data:
+                ptm_val = f"{float(data[key]):.3f}"
+    except Exception:
+        pass
+
+    result = f"{os.path.basename(json_file):45s} | pTM: {ptm_val:>5s}"
+    lines.append(result)
+    print(result)
+
+if lines:
+    with open(output_file, "w") as out_f:
+        out_f.write("\n".join(lines) + "\n")
+    print(f"\nSaved pTM summary for {len(lines)} JSON files to {output_file}")
+'
+
+# check file validity 
+python3 -c '
+import glob, os
+
+corrupted = []
+valid_count = 0
+
+for pdb in sorted(glob.glob("*.pdb")):
+    filename = os.path.basename(pdb)
+
+    # Check 1: File size
+    bytes_size = os.path.getsize(pdb)
+    if bytes_size >= 1024 * 1024:
+        size_str = f"{bytes_size / (1024*1024):.2f} MB"
+    else:
+        size_str = f"{bytes_size / 1024:.1f} KB"
+
+    chk_size = f"PASS ({size_str})" if bytes_size > 0 else "FAIL (0 B)"
+
+    if bytes_size == 0:
+        chk_atoms = "FAIL (Empty)"
+        chk_end = "FAIL (Empty)"
+        corrupted.append(filename)
+        print(f"{filename:45s} | Size: {chk_size:15s} | Atoms/Coords: {chk_atoms:15s} | END Record: {chk_end} | Status: FAILED")
+        continue
+
+    has_end = False
+    ca_count = 0
+    has_nan = False
+
+    with open(pdb, "r") as f:
+        for line in f:
+            if "NaN" in line or "Inf" in line:
+                has_nan = True
+            if line.startswith("ATOM") and line[12:16].strip() == "CA":
+                ca_count += 1
+            if line.startswith("END"):
+                has_end = True
+
+    # Check 2: Atom content and numeric validity
+    if ca_count > 0 and not has_nan:
+        chk_atoms = f"PASS ({ca_count} CAs)"
+    elif has_nan:
+        chk_atoms = "FAIL (NaN/Inf)"
+    else:
+        chk_atoms = "FAIL (0 CAs)"
+
+    # Check 3: END record
+    chk_end = "PASS" if has_end else "WARN (Missing)"
+
+    # Overall file status
+    if ca_count == 0 or has_nan:
+        status = "FAILED"
+        corrupted.append(filename)
+    elif not has_end:
+        status = "WARNING"
+    else:
+        status = "VALID"
+        valid_count += 1
+
+    print(f"{filename:45s} | Size: {chk_size:15s} | Atoms/Coords: {chk_atoms:15s} | END Record: {chk_end:14s} | Status: {status}")
+
+print(f"\nSanity Check Complete: {valid_count} Valid | {len(corrupted)} Corrupted")
+' 
+
 ```
 
