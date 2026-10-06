@@ -22,6 +22,7 @@ Screening interactions between Human 1433Z-dimer & Legionella pneumophila effect
     - Make job script to feed the MSA files to af_multimer `run_multimer_cf_batch.sh`
     - Submit job to teh HPC cluster with `submit_biomix_cf_batch_multimer.slurm`
     - QC PDB files (check log, match .pdb generated, atoms, plDDT and pTM, and validity of pdbs)
+    - Get raw ipTM scores with **get_ipTM.py**.  
 
 **Commands**
 ```bash
@@ -227,6 +228,7 @@ for pdb in sorted(glob.glob("*.pdb")):
 
 print(f"\nSanity Check Complete: {valid_count} Valid | {len(corrupted)} Corrupted")
 ' 
-
+# get raw ipTM scores 
+python3 get_ipTM.py -i output_predictions/
 ```
 
