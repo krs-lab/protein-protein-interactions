@@ -12,7 +12,7 @@ Screening interactions between Human 1433Z-dimer & Legionella pneumophila effect
         - Get fasta sequences for all IDs with `fetch_fasta_csv.py`
             - Fasta for each protein and a multifasta is made 
 - Make bait:protein **paired-fasta** 
-    - Make a bait:bait:protein pair up with `pair_bait_protein.py`
+    - Make a bait:bait:prey pair up with `pair_bait_protein.py`
 - **MSA** w `colabfold_search` on BIOMIX 
     - Make job script to run MSA (`run_msa_cf_search.sh`)
         - Use fewer threads to avoid needing more memory/diskspace to r/w
