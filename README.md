@@ -7,6 +7,7 @@ Computational screen of interactions between human 14-3-3 zeta (1433Z) dimer and
 > **Status:** complete (v1.0)  
 > **Input from:** UniProt / pathogen3d (effector IDs)  
 > **Output to:** ipTM scores (raw)
+> **Lab:** Schmitz Lab, University of Delaware
 
 ---
 
