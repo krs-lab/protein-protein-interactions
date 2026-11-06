@@ -1,47 +1,144 @@
-## Protein-protein interaction
+# Protein-protein interaction: 14-3-3 zeta vs Legionella effectors
 
-Screening interactions between Human 1433Z-dimer & Legionella pneumophila effectors computationally. 
+Computational screen of interactions between human 14-3-3 zeta (1433Z) dimer and *Legionella pneumophila* effectors, using [ColabFold](https://github.com/sokrypton/ColabFold) (MSA with `colabfold_search`, AlphaFold-Multimer models with `colabfold_batch`).
 
-**Steps** 
-- Get **amino acid sequences** in fasta format 
-    - 14-3-3-zeta from human from UniProt  
-    - 368 Legionella pneumophial effector IDs (UniProt) from pathogen3d db
-        - Download the pdf containing all 368 effector IDs 
-        - Convert pdf into csv with AI tools 
-            - Check random IDs to verify 
+![Graphical summary: Trimeric protein-protein interaction screen with AlphaFold-multimer](./ppi_af-multimer.png)
+
+> **Status:** complete (v1.0)  
+> **Input from:** UniProt / pathogen3d (effector IDs)  
+> **Output to:** ipTM scores (raw)
+
+---
+
+## Contents
+
+- [ ] 1. [Installation](#1-installation)
+- [ ] 2. [Inputs](#2-inputs)
+- [ ] 3. [Running the screen](#3-running-the-screen)
+- [ ] 4. [Getting the data and QC](#4-getting-the-data-and-qc)
+- [ ] 5. [Analysis](#5-analysis)
+- [ ] 6. [Plotting](#6-plotting)
+- [ ] 7. [Troubleshooting](#7-troubleshooting)
+
+---
+
+## 1. Installation
+
+### ColabFold
+
+```bash
+# TODO: install instructions / location on BIOMIX
+```
+
+### Python dependencies
+
+```bash
+# TODO
+```
+
+| Tool                | Version | Notes |
+|---------------------|---------|-------|
+| ColabFold           | TODO    | `colabfold_search`, `colabfold_batch` |
+| Python              | TODO    | |
+| SLURM (BIOMIX)      | TODO    | |
+
+### Where it was run
+
+| Step                          | Machine |
+|-------------------------------|---------|
+| Sequences + pairing           | local machine |
+| MSA + multimer models         | BIOMIX (HPC cluster, SLURM) |
+
+---
+
+## 2. Inputs
+
+| Input                    | Source                  | Description |
+|--------------------------|-------------------------|-------------|
+| Bait                     | UniProt                 | human 14-3-3-zeta (1433Z_HUMAN), run as a dimer (2 copies) |
+| Prey: 368 effectors      | pathogen3d db (UniProt IDs) | *L. pneumophila* effector IDs, from the pdf of all 368 IDs |
+
+> TODO: note file names (`legionella_effectors_368.csv`, `1433Z_HUMAN.fasta`).
+
+---
+
+## 3. Running the screen
+
+**Overview**
+- Get **amino acid sequences** in fasta format
+    - 14-3-3-zeta from human from UniProt
+    - 368 *Legionella pneumophila* effector IDs (UniProt) from pathogen3d db
+        - Download the pdf containing all 368 effector IDs
+        - Convert pdf into csv with AI tools
+            - Check random IDs to verify
         - Get fasta sequences for all IDs with `fetch_fasta_csv.py`
-            - Fasta for each protein and a multifasta is made 
-- Make bait:protein **paired-fasta** 
+            - Fasta for each protein and a multifasta is made
+- Make bait:protein **paired-fasta**
     - Make a bait:bait:prey pair up with `pair_bait_protein.py`
-- **MSA** w `colabfold_search` on BIOMIX 
+- **MSA** with `colabfold_search` on BIOMIX
     - Make job script to run MSA (`run_msa_cf_search.sh`)
         - Use fewer threads to avoid needing more memory/diskspace to r/w
     - Reserve hardware and time, and submit the job `submit_biomix_cf_search_msa_no_cpu.slurm`
-    - QC MSA (.a3m) files + check MSA depth of bait and prey proteins  
-- Generate AlphaFold **multimer models** w `colabfold_batch`
+    - QC MSA (.a3m) files + check MSA depth of bait and prey proteins
+- Generate AlphaFold **multimer models** with `colabfold_batch`
     - Make job script to feed the MSA files to af_multimer `run_multimer_cf_batch.sh`
-    - Submit job to teh HPC cluster with `submit_biomix_cf_batch_multimer.slurm`
+    - Submit job to the HPC cluster with `submit_biomix_cf_batch_multimer.slurm`
     - QC PDB files (check log, match .pdb generated, atoms, plDDT and pTM, and validity of pdbs)
-    - Get raw ipTM scores with `get_ipTM.py`.  
+    - Get raw ipTM scores with `get_ipTM.py`
 
-**Commands**
+### 3.1 Get amino acid sequences (local machine)
+
 ```bash
-# get aa seqs - on local machine 
 python3 fetch_fasta_csv.py -i legionella_effectors_368.csv
+```
 
-# make bait:protein pairs - on local machine 
+### 3.2 Make bait:protein pairs (local machine)
+
+```bash
 python3 pair_bait_protein.py -i ./proteins/multi_fasta.fasta -bf 1433Z_HUMAN.fasta --bait-copy 2
+```
 
-#### MSA+ 
-# submit job on BIOMIX/HPC cluster 
+### 3.3 MSA (BIOMIX / HPC cluster)
+
+```bash
+# submit job on BIOMIX/HPC cluster
 sbatch submit_biomix_cf_search_msa_no_cpu.slurm
 
-# check run status 
+# check run status
 squeue -u $USER
 tail -f colabfold_search_biomix.log
+```
 
-### QC of .a3m 
-# check output file (.a3m) integrity 
+| Script | Purpose |
+|--------|---------|
+| `run_msa_cf_search.sh` | job script for `colabfold_search` (fewer threads to limit memory/disk r/w) |
+| `submit_biomix_cf_search_msa_no_cpu.slurm` | reserves hardware and time |
+
+### 3.4 Multimer models (BIOMIX / HPC cluster)
+
+```bash
+# submit job on BIOMIX/HPC
+sbatch submit_biomix_cf_batch_multimer.slurm
+
+# job status check, same as before+
+tail -n 20 output_predictions/log.txt
+```
+
+| Script | Purpose |
+|--------|---------|
+| `run_multimer_cf_batch.sh` | feeds the MSA files to af_multimer (`colabfold_batch`) |
+| `submit_biomix_cf_batch_multimer.slurm` | reserves hardware and time |
+
+> TODO: record the exact parameters used for the final run.
+
+---
+
+## 4. Getting the data and QC
+
+### 4.1 QC of .a3m
+
+```bash
+# check output file (.a3m) integrity
 for f in *.a3m; do
   # Check if empty
   if [ ! -s "$f" ]; then
@@ -62,7 +159,7 @@ for f in *.a3m; do
   fi
 done
 
-# check MSA depth for bait and prey 
+# check MSA depth for bait and prey
 echo "filename,file_size_bytes,sequence_count_bait,sequence_count_protein" > msa_summary.csv
 
 for f in *.a3m; do
@@ -82,28 +179,28 @@ for f in *.a3m; do
 done
 
 cat msa_summary.csv
+```
 
-#### Multimer rendering 
-# submit job on BIOMIX/HPC 
-sbatch submit_biomix_cf_batch_multimer.slurm
+### 4.2 QC of .pdb
 
-# job status check, same as before+ 
-tail -n 20 output_predictions/log.txt
+Run from inside the pdb-containing directory, at the CLI.
 
-### QC of .pdb
-# from inside pdb containing dir. Enter at CLI.  
-# number of pdbs generated 
+```bash
+# number of pdbs generated
 ls *.pdb | wc -l
 
-# check atom numbers 
-for f in *.pdb; 
-do echo -n "$f: "; 
-  grep -c "^ATOM" "$f" | tr '\n' ' '; 
-  echo -n "atoms | Last line: "; tail -n 1 "$f"; 
+# check atom numbers
+for f in *.pdb;
+do echo -n "$f: ";
+  grep -c "^ATOM" "$f" | tr '\n' ' ';
+  echo -n "atoms | Last line: "; tail -n 1 "$f";
 done
 echo
+```
 
-# check plDDT scores
+**plDDT scores**
+
+```bash
 python3 -c '
 import glob
 import os
@@ -135,8 +232,11 @@ if lines:
         out_f.write("\n".join(lines) + "\n")
     print(f"Done. Processed {len(lines)} files. Summary saved to {output_file}\n")
 '
+```
 
-# check pTM scores 
+**pTM scores**
+
+```bash
 python3 -c '
 import glob, json, os
 
@@ -163,8 +263,11 @@ if lines:
         out_f.write("\n".join(lines) + "\n")
     print(f"\nSaved pTM summary for {len(lines)} JSON files to {output_file}")
 '
+```
 
-# check file validity 
+**File validity**
+
+```bash
 python3 -c '
 import glob, os
 
@@ -227,8 +330,57 @@ for pdb in sorted(glob.glob("*.pdb")):
     print(f"{filename:45s} | Size: {chk_size:15s} | Atoms/Coords: {chk_atoms:15s} | END Record: {chk_end:14s} | Status: {status}")
 
 print(f"\nSanity Check Complete: {valid_count} Valid | {len(corrupted)} Corrupted")
-' 
-# get raw ipTM scores 
+'
+```
+
+---
+
+## 5. Analysis
+
+Get raw ipTM scores:
+
+```bash
 python3 get_ipTM.py -i output_predictions/
 ```
 
+> TODO: describe output format, ipTM cutoffs used and why.
+
+---
+
+## 6. Plotting
+
+```python
+# TODO
+```
+
+Planned plots (TODO):
+- [ ] ipTM distribution across the 368 effectors
+- [ ] Top-ranked effectors by ipTM (bar)
+
+---
+
+## 7. Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| MSA job runs out of memory / disk | use fewer threads in `run_msa_cf_search.sh` |
+| TODO    | TODO |
+
+---
+
+## Output files
+
+| File | Description |
+|------|-------------|
+| `proteins/multi_fasta.fasta` | multifasta of all effectors |
+| `*.a3m` | MSA files |
+| `msa_summary.csv` | MSA size and depth (bait / protein) |
+| `output_predictions/*.pdb` | multimer models |
+| `plddt_summary.txt` | average pLDDT per model |
+| `ptm_summary.txt` | pTM per model |
+| ipTM scores | output of `get_ipTM.py` |
+
+## References
+
+- Mirdita M. et al. ColabFold: making protein folding accessible to all. *Nat Methods* 19, 679–682 (2022). https://doi.org/10.1038/s41592-022-01488-1
+- ColabFold GitHub: https://github.com/sokrypton/ColabFold
